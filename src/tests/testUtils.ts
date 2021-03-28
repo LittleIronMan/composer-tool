@@ -1,0 +1,43 @@
+export type TestList = { name: string, func: () => boolean[] | boolean | Promise<boolean[] | boolean> }[];
+
+export async function runTests(testList: TestList) {
+
+    let fail = false;
+
+    for (const test of testList) {
+        let result: boolean;
+
+        let funcRes = test.func();
+
+        if (typeof funcRes === 'object' && !(funcRes instanceof Array)) {
+            funcRes = await funcRes;
+        }
+
+        if (funcRes instanceof Array) {
+            result = funcRes.reduce((totalRes, localRes) => totalRes && localRes);
+        } else {
+            result = funcRes;
+        }
+
+        if (!result) {
+            fail = true;
+            console.log(`Test ${test.name} failed!`);
+        }
+    }
+
+    if (!fail) {
+        console.log(`All ${testList.length} tests OK!`);
+    }
+
+    return !fail;
+}
+
+function shallowEqual(a: any, b: any) {
+    for (const key in a) {
+        if (a[key] !== b[key]) {
+            return false;
+        }
+    }
+
+    return true;
+}
