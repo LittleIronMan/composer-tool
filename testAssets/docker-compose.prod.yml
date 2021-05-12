@@ -1,0 +1,25 @@
+version: "3"
+
+networks:
+    mynetwork:
+    #default:
+        #external:
+            #name: network
+
+services:
+    # https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion
+    my-letsencrypt:
+        container_name: my-letsencrypt
+        image: jrcs/letsencrypt-nginx-proxy-companion
+        volumes:
+            - ./proxy/certs:/etc/nginx/certs
+            - ./proxy/vhost.d:/etc/nginx/vhost.d
+            - ./proxy/html:/usr/share/nginx/html
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        #environment:
+            #- NGINX_PROXY_CONTAINER=my-nginx-proxy
+
+    #my-nodejs-server:
+        #environment:
+            #LETSENCRYPT_HOST: 'www.myamazingdomain.com'
+            #LETSENCRYPT_EMAIL: 'mysecuredmail@domain.com'

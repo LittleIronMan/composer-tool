@@ -31,13 +31,3 @@ export async function runTests(testList: TestList) {
 
     return !fail;
 }
-
-function shallowEqual(a: any, b: any) {
-    for (const key in a) {
-        if (a[key] !== b[key]) {
-            return false;
-        }
-    }
-
-    return true;
-}

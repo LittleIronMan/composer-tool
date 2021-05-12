@@ -1,0 +1,64 @@
+version: "3"
+
+networks:
+    mynetwork:
+    #default:
+        #external:
+            #name: network
+
+services:
+    my-nginx-proxy:
+        # https://hub.docker.com/r/jwilder/nginx-proxy
+        container_name: my-nginx-proxy
+        image: jwilder/nginx-proxy
+        ports:
+            - 80:80
+            - 443:443
+        volumes:
+            - ./proxy/certs:/etc/nginx/certs
+            - ./proxy/vhost.d:/etc/nginx/vhost.d
+            - /var/run/docker.sock:/tmp/docker.sock:ro
+
+            # volume для статического контента,
+            # путь(то, что правее двоеточия) взят с потолка, он может быть любым другим
+            # только продублируй его в файле proxy/vhost.d/default_location
+            #- ./web_static:/var/www/html
+            #- ./proxy/html:/usr/share/nginx/html
+            - ./web_static:/usr/share/nginx/html
+
+    my-nodejs-server:
+        container_name: my-nodejs-server
+        build:
+            context: .
+            dockerfile: Dockerfile-server
+        working_dir: /usr/src/app
+        volumes:
+            - ./server_build:/usr/src/app/build
+        command: node build/server.js
+        expose:
+            - 3000
+        env_file:
+            _nodejs-server.env
+        #environment:
+            #VIRTUAL_HOST: "myamazingdomain.com"
+            #VIRTUAL_PORT: 3000
+            #NODE_ENV: "production"
+        depends_on:
+            - my-postgres-db
+
+    my-postgres-db:
+        container_name: my-postgres-db
+        image: postgres:12.3-alpine
+        env_file:
+            _postgres.env
+        volumes:
+            - ${DB_PREFIX}my_db_data:/var/lib/postgresql/data:rw
+            - ${DB_PREFIX}my_init_db:/docker-entrypoint-initdb.d
+        expose:
+            - ${DB_PORT}
+
+    my-couch-db:
+        container_name: my-couch-db
+        image: couchdb:3.1.1
+        env_file:
+            _couchdb.env

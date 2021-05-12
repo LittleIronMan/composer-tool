@@ -12,7 +12,8 @@
     "composer-tool": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsc && cd ./testAssets && node ../dist/index.js ../testAssets/clusterConfig.json"
   },
   "repository": {
     "type": "git",
