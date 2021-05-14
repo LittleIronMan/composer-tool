@@ -47,6 +47,64 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
     }
 }
 
+class CodeBlock {
+    parent: CodeBlock | null = null;
+    chidren: CodeBlock[] = [];
+    begin: number;
+    end: number;
+    constructor(parent: CodeBlock | null, begin: number) {
+        this.parent = parent;
+
+        if (parent) {
+            parent.chidren.push(this);
+        }
+
+        this.begin = begin;
+        this.end = begin;
+    }
+    endPlus() {
+        this.end++;
+        if (this.parent) {
+            this.parent.endPlus();
+        }
+    }
+}
+class IfBlock extends CodeBlock {
+    elseBegin?: number;
+}
+class ForBlock extends CodeBlock {
+    iteratorName: string;
+    constructor(parent: CodeBlock, begin: number, iteratorName: string) {
+        super(parent, begin);
+        this.iteratorName = iteratorName;
+    }
+}
+
+/** 
+ * Abstract syntax tree
+ */
+class AST {
+    root: CodeBlock;
+    currentBlock: CodeBlock;
+    rowIdx = 0;
+    constructor() {
+        this.root = new CodeBlock(null, 0);
+        this.currentBlock = this.root;
+    }
+    appendRow() {
+        this.currentBlock.endPlus();
+    }
+    closeCurrent() {
+        this.currentBlock = this.currentBlock.parent || this.root;
+    }
+    forkIf() {
+        this.currentBlock = new IfBlock(this.currentBlock, this.rowIdx);
+    }
+    forkElse() {
+
+    }
+}
+
 function _parseYmlTemplate(ymlTemplateFilePath: string) {
     if (!fs.existsSync(ymlTemplateFilePath)) {
         err(`Invalid path to template yml file ${ymlTemplateFilePath}`);
@@ -60,22 +118,37 @@ function _parseYmlTemplate(ymlTemplateFilePath: string) {
     // looking for all template arguments
     const rows = buf.replace(/\r\n/g,'\n').split('\n');
 
-    // найти все ${<argument_name>}
-    const requiredArgsSet: {[key: string]: boolean} = {};
+    const ast = new AST();
 
     for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const argsDirty = row.match(/\$\{.*?\}/g);
+        let row = rows[i].trim();
 
-        if (argsDirty) {
-            for (const arg of argsDirty) {
-                const argName = arg.substring(2, arg.length - 1).trim();
-                requiredArgsSet[argName] = true;
+        if (row.startsWith("#$")) {
+            row = row.substring(2, row.length).trim();
+
+            if (row.startsWith('if')) {
+                ast.forkIf();
+            } else if (row.startsWith('elif')) {
+                ast.forkElse();
+                ast.forkIf();
+            } else if (row.startsWith('else')) {
+                ast.forkElse();
+            } else if (row.startsWith('for')) {
+                ast.forkForLoop();
+            } else if (row.startsWith('}')) {
+                ast.closeCurrent();
             }
+        } else {
+            ast.appendRow();
         }
+
+        ast.rowIdx++;
     }
 
-    console.log(Object.keys(requiredArgsSet));
+    ast.root
+    // вычисляем условия, раскрываем циклы
+
+    // берем строку, вычисляем её контекст
 }
 
 type Schema = { [field: string]: string[] };

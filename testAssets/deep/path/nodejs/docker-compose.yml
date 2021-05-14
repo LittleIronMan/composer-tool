@@ -3,7 +3,7 @@ services:
         container_name: ${name}
         build:
             context: .
-            dockerfile: ${dockerfile}
+            dockerfile: ${MODULE_PATH + 'dockerfile'}
         working_dir: /usr/src/app
         volumes:
             - ${server_code}:/usr/src/app/build
@@ -18,3 +18,7 @@ services:
             #NODE_ENV: "production"
         depends_on:
             - my-postgres-db
+        depends_on:
+            #$for (item of dependencies) {
+            - ${item}
+            #$}

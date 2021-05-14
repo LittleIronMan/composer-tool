@@ -1,5 +1,5 @@
 {
-    "prefix": "wn",
+    "prefix": "my",
     "postgres": {
         "template": "./couch_db/docker-compose.yml",
         "env": "_postgres.env"
