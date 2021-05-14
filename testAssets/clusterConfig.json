@@ -1,26 +1,32 @@
 {
-    "prefix": "my",
+    "prefix": "your",
     "postgres": {
         "template": "./couch_db/docker-compose.yml",
-        "env": "_postgres.env"
+        "env": "_postgres.env",
+        "args": {
+            "isDB": true
+        }
     },
     "couch": {
         "env": "_couch.env",
-        "template": "./couch_db/docker-compose.yml"
+        "template": "./couch_db/docker-compose.yml",
+        "args": {
+            "isDB": true
+        }
     },
     "nginx-proxy": {
         "template": "./nginx-proxy/docker-compose.yml",
 
-        "args": [
-            {"certs_dir": "_certs"}
-        ]
+        "args": {
+            "certs_dir": "_certs"
+        }
     },
     "nodejs": {
         "env": "_nodejs.env",
         "template": "./deep/path/nodejs/docker-compose.yml",
 
-        "args": [
-            {"dependsOn": ["${postgres.name}", "${couch.name}"]}
-        ]
+        "args": {
+            "server_code_dir": "nodejsCode"
+        }
     }
 }

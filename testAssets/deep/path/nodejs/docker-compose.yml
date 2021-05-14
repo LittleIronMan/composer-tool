@@ -1,3 +1,5 @@
+#$var port = this.port || 5432;
+#$ var start_command = this.start_command || 'node build/server.js';
 services:
     ${name}:
         container_name: ${name}
@@ -6,8 +8,9 @@ services:
             dockerfile: ${MODULE_PATH + 'dockerfile'}
         working_dir: /usr/src/app
         volumes:
-            - ${server_code}:/usr/src/app/build
+            - ${server_code_dir}:/usr/src/app/build
         command: ${start_command}
+
         expose:
             - ${port}
         env_file:
@@ -16,9 +19,10 @@ services:
             #VIRTUAL_HOST: "myamazingdomain.com"
             #VIRTUAL_PORT: 3000
             #NODE_ENV: "production"
+
+        #$ var databases = Object.keys(other).filter(moduleName => other[moduleName].isDB);
+        #$if (databases.length > 0) {
         depends_on:
-            - my-postgres-db
-        depends_on:
-            #$for (item of dependencies) {
-            - ${item}
-            #$}
+            #$for (var db of databases) {
+            - ${other[db].name}
+            #$}}

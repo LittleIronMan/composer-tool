@@ -1,11 +1,42 @@
 import fs from "fs";
 import path from "path";
+import {VM} from 'vm2';
 
 const defaultConfigFileName = 'clusterConfig.json';
 
 export function err(msg: string) {
     console.error("Error: " + msg);
     process.exit();
+}
+
+type ModuleCtx = {[varName: string]: any};
+type ModulesCtxMap = {[moduleName: string]: ModuleCtx};
+
+interface ModuleInfo {
+    env?: string;
+    args?: ModuleCtx;
+}
+
+function getModuleCtx(moduleName: string, allModulesVariables: ModuleCtx[]): ModuleCtx {
+    for (const ctx of allModulesVariables) {
+        if (ctx.name === moduleName) {
+            return ctx;
+        }
+    }
+
+    return {};
+}
+
+function getOtherModulesCtx(moduleName: string, allModulesVariables: ModuleCtx[]): ModulesCtxMap {
+    const res: ModulesCtxMap = {};
+
+    for (const ctx of allModulesVariables) {
+        if (ctx.name !== moduleName) {
+            res[ctx.name] = ctx;
+        }
+    }
+
+    return res;
 }
 
 export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string) {
@@ -36,76 +67,93 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
 
     _checkConfigProps(fileData, {prefix: ['string']}, 'root of ' + logEnd);
 
-    for (const moduleName in fileData) {
-        if (moduleName === 'prefix') {
-            continue;
+    let childModules = Object.keys(fileData).filter(name => ['prefix'].indexOf(name) === -1);
+
+    const scriptBegin = `// config assembly
+function printConfig(configBlock) {
+    result.config = result.config + configBlock;
+}
+`;
+
+    const allModulesVariables: ModuleCtx[] = [];
+
+    for (const moduleName of childModules) {
+        const moduleInfo: ModuleInfo = fileData[moduleName];
+        let ctx: ModuleCtx = {
+            name: moduleName,
+            // исправить!!
+            MODULE_PATH: path.dirname(clusterConfigFilePath),
+        };
+
+        if (typeof moduleInfo.env === 'string') {
+            ctx.env = moduleInfo.env;
         }
 
+        if (typeof moduleInfo.args === 'object') {
+            for (const argName in moduleInfo.args) {
+                ctx[argName] = moduleInfo.args[argName];
+            }
+        }
+
+        allModulesVariables.push(ctx);
+    }
+
+    //console.log(allModulesVariables);
+    let i = 0;
+
+    for (const moduleName of childModules) {
         const moduleInfo = fileData[moduleName];
+        let sandbox: any = Object.assign({}, getModuleCtx(moduleName, allModulesVariables));
+        sandbox.other = getOtherModulesCtx(moduleName, allModulesVariables);
+        sandbox.result = { config: "" };
 
-        _parseYmlTemplate(moduleInfo.template);
-    }
-}
+        let script = scriptBegin + _parseDynConfig(moduleInfo.template);
 
-class CodeBlock {
-    parent: CodeBlock | null = null;
-    chidren: CodeBlock[] = [];
-    begin: number;
-    end: number;
-    constructor(parent: CodeBlock | null, begin: number) {
-        this.parent = parent;
-
-        if (parent) {
-            parent.chidren.push(this);
+        if (i == childModules.length - 1) {
+            const vm = new VM({
+                sandbox: sandbox,
+                eval: false,
+                wasm: false,
+            });
+            
+            //fs.writeFileSync('out.js', script);
+            vm.run(script);
+            //fs.writeFileSync('out.yml', sandbox.result.config);
         }
 
-        this.begin = begin;
-        this.end = begin;
+        i++;
     }
-    endPlus() {
-        this.end++;
-        if (this.parent) {
-            this.parent.endPlus();
+}
+
+class DynConfParser {
+    script: string[] = [];
+    state: ('script' | 'config' | 'none') = 'none';
+
+    closeConfigBlock() {
+        this.script.push('`);');
+    }
+
+    pushScriptRow(row: string) {
+        if (this.state == 'config') {
+            this.closeConfigBlock();
         }
+
+        this.state = 'script';
+        this.script.push(row);
     }
-}
-class IfBlock extends CodeBlock {
-    elseBegin?: number;
-}
-class ForBlock extends CodeBlock {
-    iteratorName: string;
-    constructor(parent: CodeBlock, begin: number, iteratorName: string) {
-        super(parent, begin);
-        this.iteratorName = iteratorName;
+
+    pushConfigRow(row: string) {
+        if (this.state == 'script' || this.state == 'none') {
+            this.script.push('printConfig(`' + row);
+        } else {
+            this.script.push(row);
+        }
+
+        this.state = 'config';
     }
 }
 
-/** 
- * Abstract syntax tree
- */
-class AST {
-    root: CodeBlock;
-    currentBlock: CodeBlock;
-    rowIdx = 0;
-    constructor() {
-        this.root = new CodeBlock(null, 0);
-        this.currentBlock = this.root;
-    }
-    appendRow() {
-        this.currentBlock.endPlus();
-    }
-    closeCurrent() {
-        this.currentBlock = this.currentBlock.parent || this.root;
-    }
-    forkIf() {
-        this.currentBlock = new IfBlock(this.currentBlock, this.rowIdx);
-    }
-    forkElse() {
-
-    }
-}
-
-function _parseYmlTemplate(ymlTemplateFilePath: string) {
+function _parseDynConfig(ymlTemplateFilePath: string): string {
     if (!fs.existsSync(ymlTemplateFilePath)) {
         err(`Invalid path to template yml file ${ymlTemplateFilePath}`);
     }
@@ -118,37 +166,25 @@ function _parseYmlTemplate(ymlTemplateFilePath: string) {
     // looking for all template arguments
     const rows = buf.replace(/\r\n/g,'\n').split('\n');
 
-    const ast = new AST();
+    const parser = new DynConfParser();
 
     for (let i = 0; i < rows.length; i++) {
-        let row = rows[i].trim();
+        const rowSrc = rows[i];
+        let row = rowSrc.trimStart();
 
-        if (row.startsWith("#$")) {
-            row = row.substring(2, row.length).trim();
-
-            if (row.startsWith('if')) {
-                ast.forkIf();
-            } else if (row.startsWith('elif')) {
-                ast.forkElse();
-                ast.forkIf();
-            } else if (row.startsWith('else')) {
-                ast.forkElse();
-            } else if (row.startsWith('for')) {
-                ast.forkForLoop();
-            } else if (row.startsWith('}')) {
-                ast.closeCurrent();
-            }
+        if (row.startsWith('#$')) {
+            row = row.substring(2, row.length).trimStart();
+            parser.pushScriptRow(row);
         } else {
-            ast.appendRow();
+            parser.pushConfigRow(rowSrc);
         }
-
-        ast.rowIdx++;
     }
 
-    ast.root
-    // вычисляем условия, раскрываем циклы
+    if (parser.state === 'config') {
+        parser.closeConfigBlock();
+    }
 
-    // берем строку, вычисляем её контекст
+    return parser.script.join('\n');
 }
 
 type Schema = { [field: string]: string[] };
