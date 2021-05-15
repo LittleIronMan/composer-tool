@@ -1,5 +1,5 @@
 services:
-    my-couch-db:
+    ${name}:
         container_name: ${name}
         image: couchdb:3.1.1
         env_file:

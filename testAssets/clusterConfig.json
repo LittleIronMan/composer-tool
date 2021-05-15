@@ -1,10 +1,11 @@
 {
     "prefix": "your",
     "postgres": {
-        "template": "./couch_db/docker-compose.yml",
+        "template": "./postgres_db/docker-compose.yml",
         "env": "_postgres.env",
         "args": {
-            "isDB": true
+            "isDB": true,
+            "data_dir": "pg_data"
         }
     },
     "couch": {
@@ -18,7 +19,8 @@
         "template": "./nginx-proxy/docker-compose.yml",
 
         "args": {
-            "certs_dir": "_certs"
+            "certs_dir": "_certs",
+            "vhost_dir": "_vhost"
         }
     },
     "nodejs": {

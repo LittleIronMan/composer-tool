@@ -16,4 +16,6 @@ services:
             # только продублируй его в файле proxy/vhost.d/default_location
             #- ./web_static:/var/www/html
             #- ./proxy/html:/usr/share/nginx/html
+            #$ if (this.static_dir)
             - ${static_dir}:/usr/share/nginx/html
+            #$

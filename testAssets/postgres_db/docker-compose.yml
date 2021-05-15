@@ -6,6 +6,9 @@ services:
             _postgres.env
         volumes:
             - ${data_dir}:/var/lib/postgresql/data:rw
+            #$if (this.init_dir)
             - ${init_dir}:/docker-entrypoint-initdb.d
+            #$
         expose:
+            #$var db_port = this.db_port || 5432;
             - ${db_port}

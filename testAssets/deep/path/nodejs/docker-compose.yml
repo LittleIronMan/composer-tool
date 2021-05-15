@@ -1,17 +1,17 @@
-#$var port = this.port || 5432;
-#$ var start_command = this.start_command || 'node build/server.js';
 services:
     ${name}:
         container_name: ${name}
         build:
-            context: .
-            dockerfile: ${MODULE_PATH + 'dockerfile'}
+            context: ${MODULE_PATH}
+            dockerfile: dockerfile
         working_dir: /usr/src/app
         volumes:
             - ${server_code_dir}:/usr/src/app/build
+        #$ var start_command = this.start_command || 'node build/server.js';
         command: ${start_command}
 
         expose:
+            #$var port = this.port || 5432;
             - ${port}
         env_file:
             ${env}
@@ -21,8 +21,8 @@ services:
             #NODE_ENV: "production"
 
         #$ var databases = Object.keys(other).filter(moduleName => other[moduleName].isDB);
-        #$if (databases.length > 0) {
+        #$if (databases.length > 0)
         depends_on:
-            #$for (var db of databases) {
+            #$for (var db of databases)
             - ${other[db].name}
-            #$}}
+            #$

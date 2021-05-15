@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import {VM} from 'vm2';
+import { VM } from 'vm2';
+import yaml from 'js-yaml';
+import mergeWith from 'lodash.mergewith';
 
 const defaultConfigFileName = 'clusterConfig.json';
 
@@ -9,12 +11,19 @@ export function err(msg: string) {
     process.exit();
 }
 
-type ModuleCtx = {[varName: string]: any};
-type ModulesCtxMap = {[moduleName: string]: ModuleCtx};
+type ModuleCtx = { [varName: string]: any };
+type ModulesCtxMap = { [moduleName: string]: ModuleCtx };
 
 interface ModuleInfo {
+    template: string;
     env?: string;
     args?: ModuleCtx;
+}
+
+interface ModuleData {
+    name: string;
+    info: ModuleInfo;
+    compiledYaml: string;
 }
 
 function getModuleCtx(moduleName: string, allModulesVariables: ModuleCtx[]): ModuleCtx {
@@ -39,6 +48,12 @@ function getOtherModulesCtx(moduleName: string, allModulesVariables: ModuleCtx[]
     return res;
 }
 
+function mergeCustomizer(objValue: object, srcValue: object) {
+    if (Array.isArray(objValue)) {
+        return objValue.concat(srcValue);
+    }
+}
+
 export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string) {
     if (!fs.existsSync(clusterConfigFilePath)) {
         err(`Invalid path to configuration file ${clusterConfigFilePath}`);
@@ -47,7 +62,7 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
     if (fs.lstatSync(clusterConfigFilePath).isSymbolicLink()) {
         clusterConfigFilePath = fs.realpathSync(clusterConfigFilePath);
     }
-    
+
     if (fs.lstatSync(clusterConfigFilePath).isDirectory()) {
         clusterConfigFilePath = path.join(clusterConfigFilePath, defaultConfigFileName);
 
@@ -65,9 +80,15 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
 
     const logEnd = `configuration file ${clusterConfigFilePath}`;
 
-    _checkConfigProps(fileData, {prefix: ['string']}, 'root of ' + logEnd);
+    _checkConfigProps(fileData, { prefix: ['string', 'undefined'] }, 'root of ' + logEnd);
+    let prefix: string = fileData.prefix || '';
 
-    let childModules = Object.keys(fileData).filter(name => ['prefix'].indexOf(name) === -1);
+    if (prefix && !prefix.endsWith('-') && !prefix.endsWith('_')) {
+        prefix += '-';
+    }
+
+    const childModulesNames = Object.keys(fileData).filter(name => ['prefix'].indexOf(name) === -1);
+    const childModules: ModuleData[] = [];
 
     const scriptBegin = `// config assembly
 function printConfig(configBlock) {
@@ -77,12 +98,21 @@ function printConfig(configBlock) {
 
     const allModulesVariables: ModuleCtx[] = [];
 
-    for (const moduleName of childModules) {
-        const moduleInfo: ModuleInfo = fileData[moduleName];
-        let ctx: ModuleCtx = {
+    for (const _moduleName of childModulesNames) {
+        const moduleInfo: ModuleInfo = fileData[_moduleName];
+        const moduleName = prefix + _moduleName;
+        let modulePath = path.relative(path.dirname(clusterConfigFilePath), path.dirname(moduleInfo.template));
+        modulePath = modulePath.replace(/\\/g, '/');
+        //console.log(modulePath);
+
+        if (modulePath && !modulePath.endsWith('/')) {
+            modulePath += '/';
+        }
+
+        const ctx: ModuleCtx = {
             name: moduleName,
             // исправить!!
-            MODULE_PATH: path.dirname(clusterConfigFilePath),
+            MODULE_PATH: modulePath,
         };
 
         if (typeof moduleInfo.env === 'string') {
@@ -96,32 +126,66 @@ function printConfig(configBlock) {
         }
 
         allModulesVariables.push(ctx);
+
+        childModules.push({
+            name: moduleName,
+            info: moduleInfo,
+            compiledYaml: "",
+        });
     }
 
     //console.log(allModulesVariables);
-    let i = 0;
+    let accum: object = {};
+    let success = true;
 
-    for (const moduleName of childModules) {
-        const moduleInfo = fileData[moduleName];
-        let sandbox: any = Object.assign({}, getModuleCtx(moduleName, allModulesVariables));
-        sandbox.other = getOtherModulesCtx(moduleName, allModulesVariables);
+    for (const module of childModules) {
+        const sandbox: any = Object.assign({}, getModuleCtx(module.name, allModulesVariables));
+        sandbox.other = getOtherModulesCtx(module.name, allModulesVariables);
         sandbox.result = { config: "" };
 
-        let script = scriptBegin + _parseDynConfig(moduleInfo.template);
+        const script = scriptBegin + _parseDynConfig(module.info.template);
 
-        if (i == childModules.length - 1) {
-            const vm = new VM({
-                sandbox: sandbox,
-                eval: false,
-                wasm: false,
-            });
-            
-            //fs.writeFileSync('out.js', script);
+        const vm = new VM({
+            sandbox: sandbox,
+            eval: false,
+            wasm: false,
+        });
+
+        const logPrefix = `Compile ${module.info.template}: `;
+        //fs.writeFileSync('out.js', script);
+        try {
             vm.run(script);
-            //fs.writeFileSync('out.yml', sandbox.result.config);
+            console.log(logPrefix + 'Done');
+        } catch (err) {
+            console.log(logPrefix + 'Error, ' + err.message);
+            success = false;
+            continue;
         }
+        //fs.writeFileSync('out.yml', sandbox.result.config);
 
-        i++;
+        module.compiledYaml = sandbox.result.config;
+    }
+
+    if (!success) {
+        console.log('Correct the errors above to continue');
+        return;
+    }
+
+    for (const module of childModules) {
+        try {
+            const data = yaml.load(module.compiledYaml) as object;
+            accum = mergeWith(accum, data, mergeCustomizer);
+        } catch (err) {
+            console.log(err.stack || String(err));
+
+            success = false;
+            break;
+        }
+    }
+
+    if (success) {
+        const resultYml = yaml.dump(accum, { indent: 4 });
+        fs.writeFileSync('out.yml', resultYml);
     }
 }
 
@@ -161,10 +225,10 @@ function _parseDynConfig(ymlTemplateFilePath: string): string {
     if (fs.lstatSync(ymlTemplateFilePath).isSymbolicLink()) {
         ymlTemplateFilePath = fs.realpathSync(ymlTemplateFilePath);
     }
-    
+
     const buf = fs.readFileSync(ymlTemplateFilePath, 'utf8').toString();
     // looking for all template arguments
-    const rows = buf.replace(/\r\n/g,'\n').split('\n');
+    const rows = buf.replace(/\r\n/g, '\n').split('\n');
 
     const parser = new DynConfParser();
 
@@ -173,7 +237,7 @@ function _parseDynConfig(ymlTemplateFilePath: string): string {
         let row = rowSrc.trimStart();
 
         if (row.startsWith('#$')) {
-            row = row.substring(2, row.length).trimStart();
+            row = row.substring(2).trimStart();
             parser.pushScriptRow(row);
         } else {
             parser.pushConfigRow(rowSrc);
