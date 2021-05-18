@@ -2,6 +2,7 @@
     "outputFile": "out.yml",
     "prefix": "your",
     "postgres": {
+        //"not_used": "comments allowed",
         "template": "./postgres_db/docker-compose.yml",
         "env": "_postgres.env",
         "args": {
