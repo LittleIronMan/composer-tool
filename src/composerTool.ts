@@ -4,10 +4,15 @@ import { VM } from 'vm2';
 import yaml from 'js-yaml';
 import mergeWith from 'lodash.mergewith';
 import { err, _checkConfigProps } from "./utils";
-import { defaultConfigFileName } from "./const";
+import { ClusterConfig } from "./const";
 import { _parseDynConfig } from "./dynamicConfig";
 
-type ModuleCtx = { [varName: string]: any };
+interface ModuleCtx {
+    NAME: string;
+    MODULE_DIR: string;
+    [varName: string]: any;
+};
+
 type ModulesCtxMap = { [moduleName: string]: ModuleCtx };
 
 interface ModuleInfo {
@@ -20,24 +25,15 @@ interface ModuleData {
     name: string;
     info: ModuleInfo;
     compiledYaml: string;
+    ctx: ModuleCtx;
 }
 
-function getModuleCtx(moduleName: string, allModulesVariables: ModuleCtx[]): ModuleCtx {
-    for (const ctx of allModulesVariables) {
-        if (ctx.name === moduleName) {
-            return ctx;
-        }
-    }
-
-    return {};
-}
-
-function getOtherModulesCtx(moduleName: string, allModulesVariables: ModuleCtx[]): ModulesCtxMap {
+function getOtherModulesCtx(moduleName: string, allModules: ModuleData[]): ModulesCtxMap {
     const res: ModulesCtxMap = {};
 
-    for (const ctx of allModulesVariables) {
-        if (ctx.name !== moduleName) {
-            res[ctx.name] = ctx;
+    for (const module of allModules) {
+        if (module.name !== moduleName) {
+            res[module.name] = module.ctx;
         }
     }
 
@@ -50,59 +46,40 @@ function mergeCustomizer(objValue: object, srcValue: object) {
     }
 }
 
-export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string) {
-    if (!fs.existsSync(clusterConfigFilePath)) {
-        err(`Invalid path to configuration file ${clusterConfigFilePath}`);
-    }
-
-    if (fs.lstatSync(clusterConfigFilePath).isSymbolicLink()) {
-        clusterConfigFilePath = fs.realpathSync(clusterConfigFilePath);
-    }
-
-    if (fs.lstatSync(clusterConfigFilePath).isDirectory()) {
-        clusterConfigFilePath = path.join(clusterConfigFilePath, defaultConfigFileName);
-
-        if (!fs.existsSync(clusterConfigFilePath)) {
-            err(`Configuration file not found ${clusterConfigFilePath}`);
-        }
-    }
-
-    const buf = fs.readFileSync(clusterConfigFilePath, 'utf8');
-    const fileData = JSON.parse(buf);
-
-    if (!fileData) {
-        err('Error: Invalid JSON configuration file');
-    }
-
-    const logEnd = `configuration file ${clusterConfigFilePath}`;
-
-    _checkConfigProps(fileData, { prefix: ['string', 'undefined'] }, 'root of ' + logEnd);
-    let prefix: string = fileData.prefix || '';
+export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
+    _checkConfigProps(config, { outputFile: ['string'] }, 'root of config object');
+    _checkConfigProps(config, { prefix: ['string', 'undefined'] }, 'root of config object');
+    let prefix: string = config.prefix || '';
 
     if (prefix && !prefix.endsWith('-') && !prefix.endsWith('_')) {
         prefix += '-';
     }
 
-    const childModulesNames = Object.keys(fileData).filter(name => ['prefix'].indexOf(name) === -1);
+    const childModulesNames = Object.keys(config).filter(name => ['cd', 'outputFile', 'prefix'].indexOf(name) === -1);
     const childModules: ModuleData[] = [];
 
-    const allModulesVariables: ModuleCtx[] = [];
-
     for (const _moduleName of childModulesNames) {
-        const moduleInfo: ModuleInfo = fileData[_moduleName];
+        const moduleInfo: ModuleInfo = config[_moduleName];
         const moduleName = prefix + _moduleName;
-        let modulePath = path.relative(path.dirname(clusterConfigFilePath), path.dirname(moduleInfo.template));
-        modulePath = modulePath.replace(/\\/g, '/');
-        //console.log(modulePath);
 
-        if (modulePath && !modulePath.endsWith('/')) {
-            modulePath += '/';
+        _checkConfigProps(moduleInfo, { template: ['string'] }, `module "${_moduleName}"`);
+        _checkConfigProps(moduleInfo, { env: ['string', 'undefined'] }, `module "${_moduleName}"`);
+
+        if (!fs.existsSync(moduleInfo.template)) {
+            err(`File ${moduleInfo.template} not found`);
+        }
+
+        let moduleDir = path.relative(config.cd, path.dirname(moduleInfo.template));
+        moduleDir = moduleDir.replace(/\\/g, '/');
+        //console.log(moduleDir);
+
+        if (moduleDir && !moduleDir.endsWith('/')) {
+            moduleDir += '/';
         }
 
         const ctx: ModuleCtx = {
-            name: moduleName,
-            // исправить!!
-            MODULE_PATH: modulePath,
+            NAME: moduleName,
+            MODULE_DIR: moduleDir,
         };
 
         if (typeof moduleInfo.env === 'string') {
@@ -115,12 +92,11 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
             }
         }
 
-        allModulesVariables.push(ctx);
-
         childModules.push({
             name: moduleName,
             info: moduleInfo,
             compiledYaml: "",
+            ctx: ctx,
         });
     }
 
@@ -129,8 +105,8 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
     let success = true;
 
     for (const module of childModules) {
-        const sandbox: any = Object.assign({}, getModuleCtx(module.name, allModulesVariables));
-        sandbox.other = getOtherModulesCtx(module.name, allModulesVariables);
+        const sandbox: any = Object.assign({}, module.ctx);
+        sandbox.other = getOtherModulesCtx(module.name, childModules);
         sandbox.result = { config: "" };
 
         const script = _parseDynConfig(module.info.template);
@@ -151,7 +127,6 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
             success = false;
             continue;
         }
-        //fs.writeFileSync('out.yml', sandbox.result.config);
 
         module.compiledYaml = sandbox.result.config;
     }
@@ -175,6 +150,6 @@ export function generateDockerComposeYmlFromConfig(clusterConfigFilePath: string
 
     if (success) {
         const resultYml = yaml.dump(accum, { indent: 4 });
-        fs.writeFileSync('out.yml', resultYml);
+        fs.writeFileSync(config.outputFile, resultYml);
     }
 }

@@ -1,7 +1,7 @@
 services:
-    ${name}:
+    ${NAME}:
         # https://hub.docker.com/r/jwilder/nginx-proxy
-        container_name: ${name}
+        container_name: ${NAME}
         image: jwilder/nginx-proxy
         ports:
             - 80:80

@@ -1,13 +1,15 @@
 
+import fs from "fs";
+import path from "path";
 import minimistParse from "minimist";
-import { defaultConfigFileName } from "./const";
+import { ClusterConfig, defaultConfigFileName } from "./const";
 
 export function err(msg: string) {
     console.error("Error: " + msg);
     process.exit();
 }
 
-export function parseArgs(): { mainModule: string } {
+export function parseArgs(): ClusterConfig {
     const cliArgs: any = minimistParse(process.argv.slice(2));
 
     let mainModule = cliArgs._[0];
@@ -17,7 +19,32 @@ export function parseArgs(): { mainModule: string } {
         err(`Required path to file or directory with "${defaultConfigFileName}" file`);
     }
 
-    return { mainModule: mainModule };
+    if (!fs.existsSync(mainModule)) {
+        err(`Invalid path to configuration file ${mainModule}`);
+    }
+
+    if (fs.lstatSync(mainModule).isSymbolicLink()) {
+        mainModule = fs.realpathSync(mainModule);
+    }
+
+    if (fs.lstatSync(mainModule).isDirectory()) {
+        mainModule = path.join(mainModule, defaultConfigFileName);
+
+        if (!fs.existsSync(mainModule)) {
+            err(`Configuration file not found ${mainModule}`);
+        }
+    }
+
+    const buf = fs.readFileSync(mainModule, 'utf8');
+    const fileData: ClusterConfig = JSON.parse(buf);
+
+    if (!fileData) {
+        err('Error: Invalid JSON configuration file');
+    }
+
+    fileData.cd = path.dirname(mainModule);
+
+    return fileData;
 }
 
 

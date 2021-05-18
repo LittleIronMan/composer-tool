@@ -1,4 +1,5 @@
 {
+    "outputFile": "out.yml",
     "prefix": "your",
     "postgres": {
         "template": "./postgres_db/docker-compose.yml",
