@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import minimistParse from "minimist";
 import { ClusterConfig, defaultConfigFileName } from "./const";
+import stripJsonComments from "strip-json-comments";
 
 export function err(msg: string) {
     console.error("Error: " + msg);
@@ -36,7 +37,7 @@ export function parseArgs(): ClusterConfig {
     }
 
     const buf = fs.readFileSync(mainModule, 'utf8');
-    const fileData: ClusterConfig = JSON.parse(buf);
+    const fileData: ClusterConfig = JSON.parse(stripJsonComments(buf));
 
     if (!fileData) {
         err('Error: Invalid JSON configuration file');
