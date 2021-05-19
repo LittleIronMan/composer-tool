@@ -3,9 +3,9 @@ import path from "path";
 import { VM } from 'vm2';
 import yaml from 'js-yaml';
 import mergeWith from 'lodash.mergewith';
-import { err, _checkConfigProps } from "./utils";
+import { err, checkConfigProps } from "./utils";
 import { ClusterConfig } from "./const";
-import { _parseDynConfig } from "./dynamicConfig";
+import { parseDynConfig } from "./dynamicConfig";
 
 interface ModuleCtx {
     NAME: string;
@@ -47,8 +47,9 @@ function mergeCustomizer(objValue: object, srcValue: object) {
 }
 
 export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
-    _checkConfigProps(config, { outputFile: ['string'] }, 'root of config object');
-    _checkConfigProps(config, { prefix: ['string', 'undefined'] }, 'root of config object');
+    checkConfigProps(config, { cd: ['string'] }, 'root of config object');
+    checkConfigProps(config, { outputFile: ['string'] }, 'root of config object');
+    checkConfigProps(config, { prefix: ['string', 'undefined'] }, 'root of config object');
     let prefix: string = config.prefix || '';
 
     if (prefix && !prefix.endsWith('-') && !prefix.endsWith('_')) {
@@ -62,8 +63,8 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         const moduleInfo: ModuleInfo = config[_moduleName];
         const moduleName = prefix + _moduleName;
 
-        _checkConfigProps(moduleInfo, { template: ['string'] }, `module "${_moduleName}"`);
-        _checkConfigProps(moduleInfo, { env: ['string', 'undefined'] }, `module "${_moduleName}"`);
+        checkConfigProps(moduleInfo, { template: ['string'] }, `module "${_moduleName}"`);
+        checkConfigProps(moduleInfo, { env: ['string', 'undefined'] }, `module "${_moduleName}"`);
 
         if (!fs.existsSync(moduleInfo.template)) {
             err(`File ${moduleInfo.template} not found`);
@@ -109,7 +110,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         sandbox.other = getOtherModulesCtx(module.name, childModules);
         sandbox.result = { config: "" };
 
-        const script = _parseDynConfig(module.info.template);
+        const script = parseDynConfig(module.info.template);
 
         const vm = new VM({
             sandbox: sandbox,

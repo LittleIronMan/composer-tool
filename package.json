@@ -1,6 +1,6 @@
 {
   "name": "composer-tool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Utility that helps to generate a docker-compose file of your service from pieces of microservices configs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

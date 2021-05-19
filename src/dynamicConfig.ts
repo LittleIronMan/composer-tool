@@ -35,7 +35,7 @@ class DynConfParser {
     }
 }
 
-export function _parseDynConfig(ymlTemplateFilePath: string): string {
+export function parseDynConfig(ymlTemplateFilePath: string): string {
     if (!fs.existsSync(ymlTemplateFilePath)) {
         err(`Invalid path to template yml file ${ymlTemplateFilePath}`);
     }

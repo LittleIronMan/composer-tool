@@ -37,10 +37,17 @@ export function parseArgs(): ClusterConfig {
     }
 
     const buf = fs.readFileSync(mainModule, 'utf8');
-    const fileData: ClusterConfig = JSON.parse(stripJsonComments(buf));
+    let fileData: ClusterConfig = undefined as any;
+
+    try {
+        fileData = JSON.parse(stripJsonComments(buf));
+    } catch (e) {
+        console.log(`Error in file ${mainModule}`);
+        err(e.message);
+    }
 
     if (!fileData) {
-        err('Error: Invalid JSON configuration file');
+        err(`Error: Invalid JSON configuration file ${mainModule}`);
     }
 
     fileData.cd = path.dirname(mainModule);
@@ -51,7 +58,7 @@ export function parseArgs(): ClusterConfig {
 
 type Schema = { [field: string]: string[] };
 
-export function _checkConfigProps(obj: any, schema: Schema, whereIsIt: string) {
+export function checkConfigProps(obj: any, schema: Schema, whereIsIt: string) {
     for (const prop in schema) {
         let isValid = false;
 
