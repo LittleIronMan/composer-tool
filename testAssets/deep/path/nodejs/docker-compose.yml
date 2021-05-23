@@ -14,7 +14,7 @@ services:
             #$var port = this.port || 5432;
             - ${port}
         env_file:
-            ${env}
+            ${env.file}
         #environment:
             #VIRTUAL_HOST: "myamazingdomain.com"
             #VIRTUAL_PORT: 3000

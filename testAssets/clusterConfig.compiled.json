@@ -1,18 +1,14 @@
-//$ var pgDir = './postgres_db/';
-//$ var pgDataDir = './postgres_data/';
-//$ var pgPort = 5432;
-//$ var njsDir = './deep/path/nodejs/';
 {
     "outputFile": "out.yml",
     "prefix": "your",
     "postgres": {
-        "template": "${pgDir}docker-compose.yml",
+        "template": "./postgres_db/docker-compose.yml",
         "env": {
-            "config": "${pgDir}envConfig.json"
+            "config": "./postgres_db/envConfig.json"
         },
         "args": {
             "isDB": true,
-            "data_dir": "${pgDataDir}"
+            "data_dir": "./postgres_data/"
         }
     },
     "couch": {
@@ -33,12 +29,12 @@
         }
     },
     "nodejs": {
-        "template": "${njsDir}docker-compose.yml",
+        "template": "./deep/path/nodejs/docker-compose.yml",
         "env": {
-            "config": "${njsDir}src/envConfig.json",
-            "pgDir": "${path.relative(njsDir + 'src/', pgDir)}",
-            "pgPort": "${pgPort}",
-            "pgDataDir": "${pgDataDir}"
+            "config": "./deep/path/nodejs/src/envConfig.json",
+            "pgDir": "../../../../postgres_db",
+            "pgPort": "5432",
+            "pgDataDir": "./postgres_data/"
         },
         "args": {
             "server_code_dir": "nodejsCode"

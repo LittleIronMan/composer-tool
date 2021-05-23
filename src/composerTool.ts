@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { VM } from 'vm2';
 import yaml from 'js-yaml';
 import mergeWith from 'lodash.mergewith';
 import { err, checkConfigProps } from "./utils";
 import { ClusterConfig } from "./const";
-import { parseDynConfig } from "./dynamicConfig";
+import { evalDynConfig } from "./dynamicConfig";
+import checkEnv, { resolveEnvConfigPath, defaultFileReader, defaultEnvFileName } from "doctor-env";
 
 interface ModuleCtx {
     NAME: string;
@@ -15,10 +15,16 @@ interface ModuleCtx {
 
 type ModulesCtxMap = { [moduleName: string]: ModuleCtx };
 
+interface EnvInfo {
+    config?: string;
+    file: string;
+    [varName: string]: any;
+}
+
 interface ModuleInfo {
     template: string;
-    env?: string;
-    args?: ModuleCtx;
+    env?: EnvInfo;
+    args?: { [varName: string]: any };
 }
 
 interface ModuleData {
@@ -64,7 +70,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         const moduleName = prefix + _moduleName;
 
         checkConfigProps(moduleInfo, { template: ['string'] }, `module "${_moduleName}"`);
-        checkConfigProps(moduleInfo, { env: ['string', 'undefined'] }, `module "${_moduleName}"`);
+        checkConfigProps(moduleInfo, { env: ['object', 'undefined'] }, `module "${_moduleName}"`);
 
         if (!fs.existsSync(moduleInfo.template)) {
             err(`File ${moduleInfo.template} not found`);
@@ -83,7 +89,13 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
             MODULE_DIR: moduleDir,
         };
 
-        if (typeof moduleInfo.env === 'string') {
+        if (typeof moduleInfo.env === 'object') {
+            if (typeof moduleInfo.env.NAME === 'undefined') {
+                moduleInfo.env.NAME = moduleName;
+            }
+            // желательно в пакете doctor-env сделать явный метод convertToEnvFileName
+            moduleInfo.env.file = defaultEnvFileName(moduleName);
+
             ctx.env = moduleInfo.env;
         }
 
@@ -106,30 +118,19 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
     let success = true;
 
     for (const module of childModules) {
-        const sandbox: any = Object.assign({}, module.ctx);
-        sandbox.other = getOtherModulesCtx(module.name, childModules);
-        sandbox.result = { config: "" };
-
-        const script = parseDynConfig(module.info.template);
-
-        const vm = new VM({
-            sandbox: sandbox,
-            eval: false,
-            wasm: false,
-        });
+        const context: any = Object.assign({}, module.ctx);
+        context.other = getOtherModulesCtx(module.name, childModules);
 
         const logPrefix = `Compile ${module.info.template}: `;
         //fs.writeFileSync('out.js', script);
         try {
-            vm.run(script);
+            module.compiledYaml = evalDynConfig(module.info.template, context);
             console.log(logPrefix + 'Done');
-        } catch (err) {
-            console.log(logPrefix + 'Error, ' + err.message);
+        } catch (e) {
+            console.log(logPrefix + 'Error, ' + e.message);
             success = false;
             continue;
         }
-
-        module.compiledYaml = sandbox.result.config;
     }
 
     if (!success) {
@@ -152,5 +153,33 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
     if (success) {
         const resultYml = yaml.dump(accum, { indent: 4 });
         fs.writeFileSync(config.outputFile, resultYml);
+    }
+
+    // check environment
+    const dynamicEnvConfigs: { [filePath: string]: EnvInfo } = {};
+
+    for (const module of childModules) {
+        if (!module.info.env || !module.info.env.config) {
+            continue;
+        }
+
+        dynamicEnvConfigs[resolveEnvConfigPath(module.info.env.config)] = module.info.env;
+    }
+
+    for (const module of childModules) {
+        if (!module.info.env || !module.info.env.config) {
+            continue;
+        }
+
+        checkEnv(module.info.env.config, {
+            emulateInput: 'abc',
+            customFileReader: (filePath) => {
+                if (dynamicEnvConfigs[filePath]) {
+                    return evalDynConfig(filePath, dynamicEnvConfigs[filePath]);
+                } else {
+                    return defaultFileReader(filePath);
+                }
+            }
+        });
     }
 }

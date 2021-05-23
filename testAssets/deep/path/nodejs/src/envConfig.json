@@ -1,0 +1,52 @@
+{
+    "module": {
+        "name": "${NAME}",
+        "dependencies": {
+            // "couch": "$?{couchDir}",
+            "pg": "${pgDir}"
+        }
+    },
+    "config": {
+        "POSTGRES_HOST": {
+            "value": "localhost"
+        },
+        "POSTGRES_PORT": {
+            "value": "${pgPort}"
+        },
+        "POSTGRES_DIR": {
+            "desc": "Относительный путь к базе данных",
+            "value": "${pgDataDir}"
+        },
+
+        "POSTGRES_DB": {
+            "refTo": "pg.POSTGRES_DB"
+        },
+        "POSTGRES_USER": {
+            "refTo": "pg.POSTGRES_USER"
+        },
+        "POSTGRES_PASSWORD": {
+            "refTo": "pg.POSTGRES_PASSWORD"
+        }
+        // "COUCHDB_USER": {
+        //     "refTo": "couch.COUCHDB_USER"
+        // },
+        // "COUCHDB_PASSWORD": {
+        //     "refTo": "couch.COUCHDB_PASSWORD"
+        // },
+
+        // "VIRTUAL_HOST": {
+        //     "desc": [
+        //         "Виртуальное доменное имя контейнера, используется прокси-сервером nginx-proxy.",
+        //         "Например, на физическом сервере 3 контейнера: nginx-proxy, alpha, beta.",
+        //         "У контейнера alpha - VIRTUAL_HOST=alpha.com, а у контейнера beta - VIRTUAL_HOST=beta.org",
+        //         "Nginx-proxy переадресует внешний запрос alpha.com/store/items контейнеру alpha, а запрос beta.org/images/abc.png контейнеру beta."
+        //     ],
+        //     "default": "amazing.localhost.com"
+        // },
+
+        // "COMPOSE_PROJECT_NAME": {
+        //     "desc": "Название кластера в docker-compose",
+        //     "force": "whats-next"
+        // },
+    }
+}

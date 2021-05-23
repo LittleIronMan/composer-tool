@@ -4,8 +4,17 @@ import path from "path";
 import minimistParse from "minimist";
 import { ClusterConfig, defaultConfigFileName } from "./const";
 import stripJsonComments from "strip-json-comments";
+import { evalDynConfig } from "./dynamicConfig";
 
-export function err(msg: string) {
+export function err(e: any) {
+    let msg = 'unknown';
+
+    if (typeof e === 'string') {
+        msg = e;
+    } else if (typeof e === 'object' && e.message) {
+        msg = e.message;
+    }
+
     console.error("Error: " + msg);
     process.exit();
 }
@@ -36,14 +45,26 @@ export function parseArgs(): ClusterConfig {
         }
     }
 
-    const buf = fs.readFileSync(mainModule, 'utf8');
+    // const buf = fs.readFileSync(mainModule, 'utf8');
+    let buf = '';
+    const logPrefix = `Compile ${mainModule}: `;
+
+    try {
+        buf = evalDynConfig(mainModule, {});
+        console.log(logPrefix + 'Done');
+        fs.writeFileSync(path.parse(mainModule).name + '.compiled.json', buf);
+    } catch (e) {
+        console.log(logPrefix + 'Error, ' + e.message);
+        process.exit();
+    }
+
     let fileData: ClusterConfig = undefined as any;
 
     try {
         fileData = JSON.parse(stripJsonComments(buf));
     } catch (e) {
         console.log(`Error in file ${mainModule}`);
-        err(e.message);
+        err(e);
     }
 
     if (!fileData) {
