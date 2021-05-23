@@ -52,7 +52,7 @@ export function parseArgs(): ClusterConfig {
     try {
         buf = evalDynConfig(mainModule, {});
         console.log(logPrefix + 'Done');
-        fs.writeFileSync(path.parse(mainModule).name + '.compiled.json', buf);
+        //fs.writeFileSync(path.parse(mainModule).name + '.compiled.json', buf);
     } catch (e) {
         console.log(logPrefix + 'Error, ' + e.message);
         process.exit();

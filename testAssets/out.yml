@@ -2,7 +2,7 @@ services:
     your-postgres:
         container_name: your-postgres
         image: postgres:12.3-alpine
-        env_file: _postgres.env
+        env_file: _your-postgres.env
         volumes:
             - ./postgres_data/:/var/lib/postgresql/data:rw
         expose:

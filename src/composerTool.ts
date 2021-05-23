@@ -166,13 +166,15 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         dynamicEnvConfigs[resolveEnvConfigPath(module.info.env.config)] = module.info.env;
     }
 
+    //console.log(dynamicEnvConfigs);
+
     for (const module of childModules) {
         if (!module.info.env || !module.info.env.config) {
             continue;
         }
 
         checkEnv(module.info.env.config, {
-            emulateInput: 'abc',
+            //emulateInput: 'abc',
             customFileReader: (filePath) => {
                 if (dynamicEnvConfigs[filePath]) {
                     return evalDynConfig(filePath, dynamicEnvConfigs[filePath]);
