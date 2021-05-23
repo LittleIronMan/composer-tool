@@ -10,9 +10,12 @@ services:
         #$ var start_command = this.start_command || 'node build/server.js';
         command: ${start_command}
 
+        #$if (this.ports && ports.length > 0)
         expose:
-            #$var port = this.port || 5432;
+            #$for (var port of ports)
             - ${port}
+            #$
+
         env_file:
             ${env.file}
         #environment:

@@ -155,7 +155,12 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         fs.writeFileSync(config.outputFile, resultYml);
     }
 
-    // check environment
+    checkClusterEnvironment(childModules);
+}
+
+async function checkClusterEnvironment(childModules: ModuleData[]) {
+    console.log('Check environment variables:');
+
     const dynamicEnvConfigs: { [filePath: string]: EnvInfo } = {};
 
     for (const module of childModules) {
@@ -173,7 +178,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
             continue;
         }
 
-        checkEnv(module.info.env.config, {
+        await checkEnv(module.info.env.config, {
             //emulateInput: 'abc',
             customFileReader: (filePath) => {
                 if (dynamicEnvConfigs[filePath]) {

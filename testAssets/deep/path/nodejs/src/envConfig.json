@@ -13,10 +13,10 @@
         "POSTGRES_PORT": {
             "value": "${pgPort}"
         },
-        "POSTGRES_DIR": {
-            "desc": "Относительный путь к базе данных",
-            "value": "${pgDataDir}"
-        },
+        // "POSTGRES_DIR": {
+        //     "desc": "Относительный путь к базе данных",
+        //     "value": "$?{pgDataDir}"
+        // },
 
         "POSTGRES_DB": {
             "refTo": "pg.POSTGRES_DB"
