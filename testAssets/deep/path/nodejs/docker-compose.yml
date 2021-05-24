@@ -1,8 +1,8 @@
 services:
-    ${NAME}:
-        container_name: ${NAME}
+    ${fullName}:
+        container_name: ${fullName}
         build:
-            context: ${MODULE_DIR}
+            context: ${moduleDir}
             dockerfile: dockerfile
         working_dir: /usr/src/app
         volumes:
@@ -27,5 +27,5 @@ services:
         #$if (databases.length > 0)
         depends_on:
             #$for (var db of databases)
-            - ${other[db].NAME}
+            - ${other[db].fullName}
             #$

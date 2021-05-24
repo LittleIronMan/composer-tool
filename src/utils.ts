@@ -51,10 +51,10 @@ export function parseArgs(): ClusterConfig {
 
     try {
         buf = evalDynConfig(mainModule, {});
-        console.log(logPrefix + 'Done');
+        console.log(logPrefix + color.g('Done'));
         //fs.writeFileSync(path.parse(mainModule).name + '.compiled.json', buf);
     } catch (e) {
-        console.log(logPrefix + 'Error, ' + e.message);
+        console.log(logPrefix + color.r('Error, ' + e.message));
         process.exit();
     }
 
@@ -95,3 +95,18 @@ export function checkConfigProps(obj: any, schema: Schema, whereIsIt: string) {
         }
     }
 }
+
+// https://stackoverflow.com/a/41407246
+const RED = '\x1b[31m';
+const GREEN = '\x1b[32m';
+const BLUE = '\x1b[34m';
+const YELLOW = '\x1b[33m';
+const UNDERLINE = '\x1b[4m';
+const RESET = '\x1b[0m';
+export const color = {
+    r: (s: string) => RED + s + RESET,
+    g: (s: string) => GREEN + s + RESET,
+    b: (s: string) => BLUE + s + RESET,
+    y: (s: string) => YELLOW + s + RESET,
+    u: (s: string) => UNDERLINE + s + RESET,
+};

@@ -1,6 +1,6 @@
 {
     "module": {
-        "name": "${NAME}",
+        "name": "${fullName}",
         "comment": [
             "PostgreSQL docker container environment description.",
             "Read more about environment variables here: https://hub.docker.com/_/postgres"

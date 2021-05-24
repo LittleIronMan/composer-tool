@@ -1,9 +1,9 @@
 {
     "module": {
-        "name": "${NAME}",
+        "name": "${fullName}",
         "dependencies": {
             // "couch": "$?{couchDir}",
-            "pg": "${pgDir}"
+            "pg": { "id": "${pg.name}" }
         }
     },
     "config": {

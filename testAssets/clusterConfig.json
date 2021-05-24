@@ -3,6 +3,7 @@
 //$ var pgPort = 1234;
 //$ var njsDir = './deep/path/nodejs/';
 {
+    "projectName": "MarsianDanceFest",
     "outputFile": "out.yml",
     "prefix": "your",
     "postgres": {
@@ -13,7 +14,7 @@
             "db_port": "${pgPort}"
         },
         "env": {
-            "config": "${pgDir}envConfig.json"
+            "envConfig": "${pgDir}envConfig.json"
         }
     },
     "couch": {
@@ -39,7 +40,7 @@
             "ports": ["${pgPort}"]
         },
         "env": {
-            "config": "${njsDir}src/envConfig.json",
+            "envConfig": "${njsDir}src/envConfig.json",
             "pgDir": "${path.relative(njsDir + 'src/', pgDir)}",
             "pgPort": "${pgPort}"
             // "pgDataDir": "${pgDataDir}"

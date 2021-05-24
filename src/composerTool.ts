@@ -2,21 +2,23 @@ import fs from "fs";
 import path from "path";
 import yaml from 'js-yaml';
 import mergeWith from 'lodash.mergewith';
-import { err, checkConfigProps } from "./utils";
+import { err, checkConfigProps, color } from "./utils";
 import { ClusterConfig } from "./const";
 import { evalDynConfig } from "./dynamicConfig";
 import checkEnv, { resolveEnvConfigPath, defaultFileReader, defaultEnvFileName } from "doctor-env";
 
 interface ModuleCtx {
-    NAME: string;
-    MODULE_DIR: string;
+    fullName: string;
+    moduleDir: string;
     [varName: string]: any;
 };
 
 type ModulesCtxMap = { [moduleName: string]: ModuleCtx };
 
 interface EnvInfo {
-    config?: string;
+    /** envConfig file path (input) */
+    envConfig?: string;
+    /** dot-env file name (output) */
     file: string;
     [varName: string]: any;
 }
@@ -24,11 +26,13 @@ interface EnvInfo {
 interface ModuleInfo {
     template: string;
     env?: EnvInfo;
-    args?: { [varName: string]: any };
 }
 
 interface ModuleData {
+    /** Short module name without prefix, e.g. "mongoDB" */
     name: string;
+    /** Full module name WITH prefix, e.g. "cluster14fb-mongoDB" */
+    fullName: string;
     info: ModuleInfo;
     compiledYaml: string;
     ctx: ModuleCtx;
@@ -38,8 +42,8 @@ function getOtherModulesCtx(moduleName: string, allModules: ModuleData[]): Modul
     const res: ModulesCtxMap = {};
 
     for (const module of allModules) {
-        if (module.name !== moduleName) {
-            res[module.name] = module.ctx;
+        if (module.fullName !== moduleName) {
+            res[module.fullName] = module.ctx;
         }
     }
 
@@ -53,24 +57,30 @@ function mergeCustomizer(objValue: object, srcValue: object) {
 }
 
 export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
-    checkConfigProps(config, { cd: ['string'] }, 'root of config object');
-    checkConfigProps(config, { outputFile: ['string'] }, 'root of config object');
-    checkConfigProps(config, { prefix: ['string', 'undefined'] }, 'root of config object');
+    const logEnd = 'root of config object';
+    checkConfigProps(config, { projectName: ['string'] }, logEnd);
+    checkConfigProps(config, { cd: ['string'] }, logEnd);
+    checkConfigProps(config, { outputFile: ['string'] }, logEnd);
+    checkConfigProps(config, { prefix: ['string', 'undefined'] }, logEnd);
     let prefix: string = config.prefix || '';
 
     if (prefix && !prefix.endsWith('-') && !prefix.endsWith('_')) {
         prefix += '-';
     }
 
-    const childModulesNames = Object.keys(config).filter(name => ['cd', 'outputFile', 'prefix'].indexOf(name) === -1);
-    const childModules: ModuleData[] = [];
+    const clusterModulesNames = Object.keys(config).filter(name => ['projectName', 'cd', 'outputFile', 'prefix'].indexOf(name) === -1);
+    const clusterModules: ModuleData[] = [];
 
-    for (const _moduleName of childModulesNames) {
-        const moduleInfo: ModuleInfo = config[_moduleName];
-        const moduleName = prefix + _moduleName;
+    for (const moduleName of clusterModulesNames) {
+        const moduleInfo: ModuleInfo = config[moduleName];
+        const fullName = prefix + moduleName;
 
-        checkConfigProps(moduleInfo, { template: ['string'] }, `module "${_moduleName}"`);
-        checkConfigProps(moduleInfo, { env: ['object', 'undefined'] }, `module "${_moduleName}"`);
+        const logEnd = `module "${moduleName}"`;
+        checkConfigProps(moduleInfo, { template: ['string'] }, logEnd);
+        checkConfigProps(moduleInfo, { env: ['object', 'undefined'] }, logEnd);
+        // следующие свойства разрешается перезаписывать, но делать так нежелательно
+        checkConfigProps(moduleInfo, { fullName: ['string', 'undefined'] }, logEnd);
+        checkConfigProps(moduleInfo, { moduleDir: ['string', 'undefined'] }, logEnd);
 
         if (!fs.existsSync(moduleInfo.template)) {
             err(`File ${moduleInfo.template} not found`);
@@ -85,49 +95,50 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         }
 
         const ctx: ModuleCtx = {
-            NAME: moduleName,
-            MODULE_DIR: moduleDir,
+            fullName: fullName,
+            moduleDir: moduleDir,
         };
 
         if (typeof moduleInfo.env === 'object') {
-            if (typeof moduleInfo.env.NAME === 'undefined') {
-                moduleInfo.env.NAME = moduleName;
+            if (typeof moduleInfo.env.fullName === 'undefined') {
+                moduleInfo.env.fullName = fullName;
             }
-            // желательно в пакете doctor-env сделать явный метод convertToEnvFileName
-            moduleInfo.env.file = defaultEnvFileName(moduleName);
+            moduleInfo.env.file = defaultEnvFileName(fullName);
 
             ctx.env = moduleInfo.env;
         }
 
-        if (typeof moduleInfo.args === 'object') {
-            for (const argName in moduleInfo.args) {
-                ctx[argName] = moduleInfo.args[argName];
+        for (const key in moduleInfo) {
+            if (['template', 'env'].indexOf(key) !== -1) {
+                continue;
             }
+
+            ctx[key] = moduleInfo[key as keyof ModuleInfo];
         }
 
-        childModules.push({
+        clusterModules.push({
             name: moduleName,
+            fullName: fullName,
             info: moduleInfo,
             compiledYaml: "",
             ctx: ctx,
         });
     }
 
-    //console.log(allModulesVariables);
     let accum: object = {};
     let success = true;
 
-    for (const module of childModules) {
+    for (const module of clusterModules) {
         const context: any = Object.assign({}, module.ctx);
-        context.other = getOtherModulesCtx(module.name, childModules);
+        context.other = getOtherModulesCtx(module.fullName, clusterModules);
 
         const logPrefix = `Compile ${module.info.template}: `;
         //fs.writeFileSync('out.js', script);
         try {
             module.compiledYaml = evalDynConfig(module.info.template, context);
-            console.log(logPrefix + 'Done');
+            console.log(logPrefix + color.g('Done'));
         } catch (e) {
-            console.log(logPrefix + 'Error, ' + e.message);
+            console.log(logPrefix + color.r('Error, ' + e.message));
             success = false;
             continue;
         }
@@ -138,7 +149,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         return;
     }
 
-    for (const module of childModules) {
+    for (const module of clusterModules) {
         try {
             const data = yaml.load(module.compiledYaml) as object;
             accum = mergeWith(accum, data, mergeCustomizer);
@@ -155,37 +166,60 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         fs.writeFileSync(config.outputFile, resultYml);
     }
 
-    checkClusterEnvironment(childModules);
+    checkClusterEnvironment(clusterModules);
 }
 
-async function checkClusterEnvironment(childModules: ModuleData[]) {
-    console.log('Check environment variables:');
+async function checkClusterEnvironment(clusterModules: ModuleData[]) {
+    //console.log('Check environment variables:');
 
-    const dynamicEnvConfigs: { [filePath: string]: EnvInfo } = {};
-
-    for (const module of childModules) {
-        if (!module.info.env || !module.info.env.config) {
+    for (const module of clusterModules) {
+        if (!module.info.env || !module.info.env.envConfig) {
             continue;
         }
 
-        dynamicEnvConfigs[resolveEnvConfigPath(module.info.env.config)] = module.info.env;
-    }
+        console.log(`Check environment config ${color.y(module.info.env.envConfig)} [module:${color.y(module.name)}]`);
 
-    //console.log(dynamicEnvConfigs);
-
-    for (const module of childModules) {
-        if (!module.info.env || !module.info.env.config) {
-            continue;
-        }
-
-        await checkEnv(module.info.env.config, {
+        await checkEnv(module.info.env.envConfig, {
             //emulateInput: 'abc',
-            customFileReader: (filePath) => {
-                if (dynamicEnvConfigs[filePath]) {
-                    return evalDynConfig(filePath, dynamicEnvConfigs[filePath]);
-                } else {
-                    return defaultFileReader(filePath);
+            moduleId: module.name,
+            customFileReader: (filePath, moduleId) => {
+                //console.log(`Custom read file ${filePath}`);
+                let envForParse: EnvInfo | undefined;
+
+                for (const m of clusterModules) {
+                    if (!m.info.env || !m.info.env.envConfig) {
+                        continue;
+                    }
+
+                    if (moduleId) {
+                        if (m.name === moduleId) {
+                            envForParse = m.info.env;
+                            filePath = envForParse.envConfig as string;
+                            break;
+                        }
+                    } else {
+                        if (m.info.env.envConfig === filePath) {
+                            envForParse = m.info.env;
+                            break;
+                        }
+                    }
                 }
+
+                if (envForParse) {
+                    const logPrefix = `Compile ${filePath}` + (moduleId ? ` [module:${moduleId}]` : '') + ': ';
+                    try {
+                        const result = evalDynConfig(filePath, envForParse);
+                        console.log(logPrefix + color.g('Done'));
+                        return result;
+                    } catch (e) {
+                        console.log(logPrefix + color.r('Error, ' + e.message));
+                        process.exit();
+                    }
+                } else if (moduleId) {
+                    err(`Not found environment config file for module ${color.y(moduleId)}`)
+                }
+
+                return defaultFileReader(filePath);
             }
         });
     }

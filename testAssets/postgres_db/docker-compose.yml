@@ -1,6 +1,6 @@
 services:
-    ${NAME}:
-        container_name: ${NAME}
+    ${fullName}:
+        container_name: ${fullName}
         image: postgres:12.3-alpine
         env_file:
             ${env.file}

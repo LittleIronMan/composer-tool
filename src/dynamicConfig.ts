@@ -50,7 +50,6 @@ export function parseDynConfig(dynConfigFilePath: string): string {
     const startTag = ['.yml', '.yaml'].indexOf(ext) !== -1 ? '#$' : '//$';
 
     const buf = fs.readFileSync(dynConfigFilePath, 'utf8').toString();
-    // looking for all template arguments
     const rows = buf.replace(/\r\n/g, '\n').split('\n');
 
     const parser = new DynConfParser();
@@ -100,6 +99,12 @@ export function evalDynConfig(dynConfigFilePath: string, context: object) {
 
         // extname(p: string): string;
         extname: (p: string) => path.extname(p),
+    };
+    sandbox.spread = (obj: any) => {
+        if (typeof obj === 'object') {
+            const str = JSON.stringify(obj);
+            return str.substring(1, str.length - 1);
+        }
     };
 
     const script = parseDynConfig(dynConfigFilePath);
