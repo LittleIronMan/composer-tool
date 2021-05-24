@@ -2,10 +2,10 @@ import fs from "fs";
 import path from "path";
 import yaml from 'js-yaml';
 import mergeWith from 'lodash.mergewith';
-import { err, checkConfigProps, color } from "./utils";
+import { err, checkConfigProps, color, truePath } from "./utils";
 import { ClusterConfig } from "./const";
 import { evalDynConfig } from "./dynamicConfig";
-import checkEnv, { resolveEnvConfigPath, defaultFileReader, defaultEnvFileName } from "doctor-env";
+import checkEnv, { defaultFileReader, defaultEnvFileName } from "doctor-env";
 
 interface ModuleCtx {
     fullName: string;
@@ -86,9 +86,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
             err(`File ${moduleInfo.template} not found`);
         }
 
-        let moduleDir = path.relative(config.cd, path.dirname(moduleInfo.template));
-        moduleDir = moduleDir.replace(/\\/g, '/');
-        //console.log(moduleDir);
+        let moduleDir = truePath(path.relative(config.cd, path.dirname(moduleInfo.template)));
 
         if (moduleDir && !moduleDir.endsWith('/')) {
             moduleDir += '/';

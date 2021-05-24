@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { err } from "./utils";
+import { err, safePath } from "./utils";
 import { VM/*, NodeVM*/ } from 'vm2';
 
 const scriptBegin = `// config assembly
@@ -76,30 +76,7 @@ export function parseDynConfig(dynConfigFilePath: string): string {
 export function evalDynConfig(dynConfigFilePath: string, context: object) {
     const sandbox: any = Object.assign({}, context);
     sandbox.result = { config: "" };
-    sandbox.path = {
-        // normalize(p: string): string;
-
-        // join(...paths: string[]): string;
-        join: (...paths: string[]) => path.join(...paths).replace(/\\/g, '/'),
-
-        // resolve(...pathSegments: string[]): string;
-        resolve: (...pathSegments: string[]) => path.resolve(...pathSegments).replace(/\\/g, '/'),
-
-        // isAbsolute(p: string): boolean;
-        isAbsolute: (p: string) => path.isAbsolute(p),
-
-        // relative(from: string, to: string): string;
-        relative: (from: string, to: string) => path.relative(from, to).replace(/\\/g, '/'),
-
-        // dirname(p: string): string;
-        dirname: (p: string) => path.dirname(p).replace(/\\/g, '/'),
-
-        // basename(p: string, ext?: string): string;
-        basename: (p: string, ext?: string) => path.basename(p, ext).replace(/\\/g, '/'),
-
-        // extname(p: string): string;
-        extname: (p: string) => path.extname(p),
-    };
+    sandbox.path = safePath;
     sandbox.spread = (obj: any) => {
         if (typeof obj === 'object') {
             const str = JSON.stringify(obj);

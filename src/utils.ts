@@ -110,3 +110,38 @@ export const color = {
     y: (s: string) => YELLOW + s + RESET,
     u: (s: string) => UNDERLINE + s + RESET,
 };
+
+export function truePath(p: string): string {
+    p = p.replace(/\\/g, '/');
+
+    if (p && !path.isAbsolute(p) && p !== '.' && !p.startsWith('./')) {
+        p = './' + p;
+    }
+
+    return p;
+}
+
+export const safePath = {
+    // normalize(p: string): string;
+
+    // join(...paths: string[]): string;
+    join: (...paths: string[]) => truePath(path.join(...paths)),
+
+    // resolve(...pathSegments: string[]): string;
+    resolve: (...pathSegments: string[]) => truePath(path.resolve(...pathSegments)),
+
+    // isAbsolute(p: string): boolean;
+    isAbsolute: (p: string) => path.isAbsolute(p),
+
+    // relative(from: string, to: string): string;
+    relative: (from: string, to: string) => truePath(path.relative(from, to)),
+
+    // dirname(p: string): string;
+    dirname: (p: string) => truePath(path.dirname(p)),
+
+    // basename(p: string, ext?: string): string;
+    basename: (p: string, ext?: string) => path.basename(p, ext),
+
+    // extname(p: string): string;
+    extname: (p: string) => path.extname(p),
+};
