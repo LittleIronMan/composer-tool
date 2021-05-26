@@ -8,37 +8,29 @@
     "prefix": "your",
     "postgres": {
         "template": "${pgDir}docker-compose.yml",
-        "args": {
-            "isDB": true,
-            "data_dir": "${pgDataDir}",
-            "db_port": "${pgPort}"
-        },
+        "isDB": true,
+        "data_dir": "${pgDataDir}",
+        "db_port": "${pgPort}",
         "env": {
             "envConfig": "${pgDir}envConfig.json"
         }
     },
     "couch": {
         "template": "./couch_db/docker-compose.yml",
-        "args": {
-            "isDB": true
-        },
+        "isDB": true,
         "env": {
             "file": "_couch.env"
         }
     },
     "nginx-proxy": {
         "template": "./nginx-proxy/docker-compose.yml",
-        "args": {
-            "certs_dir": "_certs",
-            "vhost_dir": "_vhost"
-        }
+        "certs_dir": "_certs",
+        "vhost_dir": "_vhost"
     },
     "nodejs": {
         "template": "${njsDir}docker-compose.yml",
-        "args": {
-            "server_code_dir": "nodejsCode",
-            "ports": ["${pgPort}"]
-        },
+        "server_code_dir": "nodejsCode",
+        "ports": ["${pgPort}"],
         "env": {
             "envConfig": "${njsDir}src/envConfig.json",
             "pgDir": "${path.relative(njsDir + 'src/', pgDir)}",

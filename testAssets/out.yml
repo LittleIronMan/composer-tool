@@ -24,7 +24,7 @@ services:
     your-nodejs:
         container_name: your-nodejs
         build:
-            context: deep/path/nodejs/
+            context: ./deep/path/nodejs/
             dockerfile: dockerfile
         working_dir: /usr/src/app
         volumes:

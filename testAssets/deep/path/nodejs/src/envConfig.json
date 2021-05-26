@@ -3,7 +3,7 @@
         "name": "${fullName}",
         "dependencies": {
             // "couch": "$?{couchDir}",
-            "pg": { "id": "${pg.name}" }
+            "pg": "${pgDir}"
         }
     },
     "config": {
