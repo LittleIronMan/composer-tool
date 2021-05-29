@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { err, safePath } from "./utils";
-import { VM/*, NodeVM*/ } from 'vm2';
+import { /*VM, */NodeVM } from 'vm2';
 
 const scriptBegin = `// config assembly
 function printConfig(configBlock) {
@@ -46,13 +46,17 @@ export function parseDynConfig(dynConfigFilePath: string): string {
         dynConfigFilePath = fs.realpathSync(dynConfigFilePath);
     }
 
-    const ext = path.extname(dynConfigFilePath);
-    const startTag = ['.yml', '.yaml'].indexOf(ext) !== -1 ? '#$' : '//$';
-
     const buf = fs.readFileSync(dynConfigFilePath, 'utf8').toString();
+    const ext = path.extname(dynConfigFilePath);
+
+    if (ext === '.js') {
+        return buf;
+    }
+
     const rows = buf.replace(/\r\n/g, '\n').split('\n');
 
     const parser = new DynConfParser();
+    const startTag = ['.yml', '.yaml'].indexOf(ext) !== -1 ? '#$' : '//$';
 
     for (let i = 0; i < rows.length; i++) {
         const rowSrc = rows[i];
@@ -75,43 +79,49 @@ export function parseDynConfig(dynConfigFilePath: string): string {
 
 export function evalDynConfig(dynConfigFilePath: string, context: object) {
     const sandbox: any = Object.assign({}, context);
-    sandbox.result = { config: "" };
+    sandbox.result = { config: "", configObj: null };
     sandbox.path = safePath;
     sandbox.spread = (obj: any) => {
         if (typeof obj === 'object') {
             const str = JSON.stringify(obj);
             return str.substring(1, str.length - 1);
+        } else {
+            return obj;
         }
     };
 
     const script = parseDynConfig(dynConfigFilePath);
 
-    const vm = new VM({
-        sandbox: sandbox,
-        eval: false,
-        wasm: false,
-    });
-
-    // const vm = new NodeVM({
-    //     compiler: 'javascript',
+    // const vm = new VM({
     //     sandbox: sandbox,
     //     eval: false,
     //     wasm: false,
-    //     console: 'inherit',
-    //     require: {
-    //         external: false,
-    //         builtin: [/*'fs', */'path'],
-    //         // root: "./",
-    //         // mock: {
-    //         //     fs: {
-    //         //         readFileSync() { return 'Nice try!'; }
-    //         //     }
-    //         // }
-    //     },
-    //     nesting: false,
-    //     wrapper: 'none',
     // });
 
+    const vm = new NodeVM({
+        sandbox: sandbox,
+        eval: false,
+        wasm: false,
+        console: 'off',
+        // require: {
+        //     external: false,
+        //     builtin: [/*'fs', */'path'],
+        //     // root: "./",
+        //     // mock: {
+        //     //     fs: {
+        //     //         readFileSync() { return 'Nice try!'; }
+        //     //     }
+        //     // }
+        // },
+        nesting: false,
+        wrapper: 'none',
+    });
+
     vm.run(script);
-    return sandbox.result.config;
+
+    if (sandbox.result.configObj) {
+        return JSON.stringify(sandbox.result.configObj);
+    } else {
+        return sandbox.result.config;
+    }
 }
