@@ -45,6 +45,8 @@ export function parseArgs(): ClusterConfig {
         }
     }
 
+    mainModule = truePath(mainModule);
+
     // const buf = fs.readFileSync(mainModule, 'utf8');
     let buf = '';
     const logPrefix = `Compile ${mainModule}: `;
@@ -114,7 +116,7 @@ export const color = {
 export function truePath(p: string): string {
     p = p.replace(/\\/g, '/');
 
-    if (p && !path.isAbsolute(p) && p !== '.' && !p.startsWith('./')) {
+    if (p && !path.isAbsolute(p) && !p.startsWith('./') && !p.startsWith('../') && p !== '.') {
         p = './' + p;
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "composer-tool",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Utility that helps to generate a docker-compose file of your service from pieces of microservices configs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,7 +19,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsc && cd ./testAssets && node ../dist/index.js ../testAssets"
+    "test": "tsc && cd ./testAssets && node ../dist/index.js ."
   },
   "repository": {
     "type": "git",
@@ -41,7 +41,7 @@
   },
   "homepage": "https://github.com/LittleIronMan/composer-tool#readme",
   "dependencies": {
-    "doctor-env": "^1.0.8",
+    "doctor-env": "^1.0.9",
     "js-yaml": "^4.1.0",
     "lodash.mergewith": "^4.6.2",
     "minimist": "^1.2.5",

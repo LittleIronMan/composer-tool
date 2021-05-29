@@ -170,11 +170,14 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
 async function checkClusterEnvironment(clusterModules: ModuleData[]) {
     //console.log('Check environment variables:');
 
+    let checkCounter = 0;
+
     for (const module of clusterModules) {
         if (!module.info.env || !module.info.env.envConfig) {
             continue;
         }
 
+        checkCounter++;
         console.log(`Check environment config ${color.y(module.info.env.envConfig)} [module:${color.y(module.name)}]`);
 
         await checkEnv(module.info.env.envConfig, {
@@ -220,5 +223,9 @@ async function checkClusterEnvironment(clusterModules: ModuleData[]) {
                 return defaultFileReader(filePath);
             }
         });
+    }
+
+    if (checkCounter == 0) {
+        console.log('None of the modules provided the path to the "envConfig" file');
     }
 }
