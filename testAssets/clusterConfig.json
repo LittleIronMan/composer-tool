@@ -18,9 +18,7 @@
     "couch": {
         "template": "./couch_db/docker-compose.yml",
         "isDB": true,
-        "env": {
-            "file": "_couch.env"
-        }
+        "envFile": "_couch.env"
     },
     "nginx-proxy": {
         "template": "./nginx-proxy/docker-compose.yml",

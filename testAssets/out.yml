@@ -10,7 +10,7 @@ services:
     your-couch:
         container_name: your-couch
         image: couchdb:3.1.1
-        env_file: _your-couch.env
+        env_file: _couch.env
     your-nginx-proxy:
         container_name: your-nginx-proxy
         image: jwilder/nginx-proxy

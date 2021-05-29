@@ -1,6 +1,7 @@
 
 import fs from "fs";
 import path from "path";
+import readline from "readline";
 import minimistParse from "minimist";
 import { ClusterConfig, defaultConfigFileName } from "./const";
 import stripJsonComments from "strip-json-comments";
@@ -98,6 +99,25 @@ export function checkConfigProps(obj: any, schema: Schema, whereIsIt: string) {
     }
 }
 
+export function setDefaultProps<T extends object>(context: T, defaultProps: string[], defaultValues: Partial<T>, whereIsIt: string) {
+    const contextProps = Object.keys(context);
+    const badProps: string[] = [];
+
+    for (const prop of contextProps) {
+        if (defaultProps.indexOf(prop) !== -1 && context[prop as keyof T] !== defaultValues[prop as keyof T]) {
+            badProps.push('"' + color.y(prop) + '"');
+        }
+    }
+
+    Object.assign(context, defaultValues);
+
+    if (badProps.length > 0) {
+        console.log(`${color.r('WARNING!')} The context properties ${badProps.join(', ')} (of ${whereIsIt}) will be overwritten`);
+        console.log(`Hint: the context of each file contains the following default properties: ${defaultProps.map(p => '"' + p + '"').join(', ')} - DON'T USE THEM`);
+    }
+}
+
+
 // https://stackoverflow.com/a/41407246
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
@@ -147,3 +167,17 @@ export const safePath = {
     // extname(p: string): string;
     extname: (p: string) => path.extname(p),
 };
+
+export async function input(question: string): Promise<string> {
+    return new Promise(function (resolve, reject) {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        rl.question(question, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
+    });
+}

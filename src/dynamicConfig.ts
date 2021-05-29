@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { err, safePath } from "./utils";
-import { /*VM, */NodeVM } from 'vm2';
+import { err, safePath, color } from "./utils";
+import { VM/*, NodeVM*/ } from 'vm2';
 
 const scriptBegin = `// config assembly
 function printConfig(configBlock) {
-    result.config = result.config + configBlock;
+    module.formattedConfig = module.formattedConfig + configBlock;
 }
 `;
 
@@ -49,8 +49,12 @@ export function parseDynConfig(dynConfigFilePath: string): string {
     const buf = fs.readFileSync(dynConfigFilePath, 'utf8').toString();
     const ext = path.extname(dynConfigFilePath);
 
+    if (buf.includes('`')) {
+        err(`Forbidden to use the backquote (backtick) symbol, file ${dynConfigFilePath}`);
+    }
+
     if (ext === '.js') {
-        return buf;
+        return scriptBegin + 'printConfig(`' + buf + '`);';
     }
 
     const rows = buf.replace(/\r\n/g, '\n').split('\n');
@@ -79,7 +83,6 @@ export function parseDynConfig(dynConfigFilePath: string): string {
 
 export function evalDynConfig(dynConfigFilePath: string, context: object) {
     const sandbox: any = Object.assign({}, context);
-    sandbox.result = { config: "", configObj: null };
     sandbox.path = safePath;
     sandbox.spread = (obj: any) => {
         if (typeof obj === 'object') {
@@ -89,39 +92,47 @@ export function evalDynConfig(dynConfigFilePath: string, context: object) {
             return obj;
         }
     };
+    sandbox.module = { exports: {}, formattedConfig: '' };
 
-    const script = parseDynConfig(dynConfigFilePath);
+    let script = parseDynConfig(dynConfigFilePath);
 
-    // const vm = new VM({
-    //     sandbox: sandbox,
-    //     eval: false,
-    //     wasm: false,
-    // });
-
-    const vm = new NodeVM({
+    const vm = new VM({
         sandbox: sandbox,
         eval: false,
         wasm: false,
-        console: 'off',
-        // require: {
-        //     external: false,
-        //     builtin: [/*'fs', */'path'],
-        //     // root: "./",
-        //     // mock: {
-        //     //     fs: {
-        //     //         readFileSync() { return 'Nice try!'; }
-        //     //     }
-        //     // }
-        // },
-        nesting: false,
-        wrapper: 'none',
     });
+
+    // const vm = new NodeVM({
+    //     sandbox: sandbox,
+    //     eval: false,
+    //     wasm: false,
+    //     console: 'off',
+    //     // require: {
+    //     //     external: false,
+    //     //     builtin: [/*'fs', */'path'],
+    //     //     // root: "./",
+    //     //     // mock: {
+    //     //     //     fs: {
+    //     //     //         readFileSync() { return 'Nice try!'; }
+    //     //     //     }
+    //     //     // }
+    //     // },
+    //     nesting: false,
+    //     wrapper: 'none',
+    // });
+
+    const ext = path.extname(dynConfigFilePath);
+
+    if (ext === '.js') {
+        vm.run(script);
+        script = sandbox.module.formattedConfig;
+    }
 
     vm.run(script);
 
-    if (sandbox.result.configObj) {
-        return JSON.stringify(sandbox.result.configObj);
+    if (sandbox.module.exports.config) {
+        return JSON.stringify(sandbox.module.exports);
     } else {
-        return sandbox.result.config;
+        return sandbox.module.formattedConfig;
     }
 }

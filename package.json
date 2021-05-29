@@ -41,7 +41,7 @@
   },
   "homepage": "https://github.com/LittleIronMan/composer-tool#readme",
   "dependencies": {
-    "doctor-env": "^1.0.9",
+    "doctor-env": "^1.1.0",
     "js-yaml": "^4.1.0",
     "lodash.mergewith": "^4.6.2",
     "minimist": "^1.2.5",
