@@ -150,7 +150,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
     fs.writeFileSync(config.outputFile, resultYml);
     console.log(`Merged file ${config.outputFile} successfully updated`);
 
-    // ------------ check environment -------------
+    // ------------ check environment ------------
     const environmentsForCheck: EnvInfo[] = [];
 
     for (const module of clusterModules) {
@@ -166,6 +166,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         .then((ans) => {
             ans = ans.trim().toLowerCase();
             if (ans === 'y' || ans === '') {
+                console.log('------------ check environment ------------');
                 checkClusterEnvironment(clusterModules);
             }
         })
