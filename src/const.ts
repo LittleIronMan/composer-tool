@@ -6,4 +6,8 @@ export interface ClusterConfig {
     [key: string]: any;
 }
 
+export interface Options {
+    reportError?: boolean;
+}
+
 export const defaultConfigFileName = 'clusterConfig.json';

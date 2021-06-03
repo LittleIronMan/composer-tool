@@ -3,7 +3,7 @@ import path from "path";
 import yaml from 'js-yaml';
 import mergeWith from 'lodash.mergewith';
 import { err, checkConfigProps, setDefaultProps, color, truePath, input } from "./utils";
-import { ClusterConfig } from "./const";
+import { ClusterConfig, Options } from "./const";
 import { evalDynConfig } from "./dynamicConfig";
 import checkEnv, { defaultFileReader, defaultEnvFileName } from "doctor-env";
 
@@ -55,7 +55,7 @@ function mergeCustomizer(objValue: object, srcValue: object) {
     }
 }
 
-export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
+export function generateDockerComposeYmlFromConfig(config: ClusterConfig, options: Options) {
     const logEnd = 'root of config object';
     checkConfigProps(config, { projectName: ['string'] }, logEnd);
     checkConfigProps(config, { cd: ['string'] }, logEnd);
@@ -115,7 +115,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
         const logPrefix = `Compile ${module.info.template}: `;
         //fs.writeFileSync('out.js', script);
         try {
-            module.compiledYaml = evalDynConfig(module.info.template, context);
+            module.compiledYaml = evalDynConfig(module.info.template, context, { saveBadJs: options.reportError });
             console.log(logPrefix + color.g('Done'));
         } catch (e) {
             console.log(logPrefix + color.r('Error, ' + e.message));
@@ -167,13 +167,13 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig) {
             ans = ans.trim().toLowerCase();
             if (ans === 'y' || ans === '') {
                 console.log('------------ check environment ------------');
-                checkClusterEnvironment(clusterModules);
+                checkClusterEnvironment(clusterModules, options);
             }
         })
     }
 }
 
-async function checkClusterEnvironment(clusterModules: ModuleData[]) {
+async function checkClusterEnvironment(clusterModules: ModuleData[], options: Options) {
     //console.log('Check environment variables:');
 
     let checkCounter = 0;
@@ -215,7 +215,7 @@ async function checkClusterEnvironment(clusterModules: ModuleData[]) {
                 if (envForParse) {
                     const logPrefix = `Compile ${filePath}` + (moduleId ? ` [module:${moduleId}]` : '') + ': ';
                     try {
-                        const result = evalDynConfig(filePath, envForParse);
+                        const result = evalDynConfig(filePath, envForParse, { saveBadJs: options.reportError });
                         console.log(logPrefix + color.g('Done'));
                         return result;
                     } catch (e) {

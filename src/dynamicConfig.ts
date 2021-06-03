@@ -53,9 +53,9 @@ export function parseDynConfig(dynConfigFilePath: string): string {
         err(`Forbidden to use the backquote (backtick) symbol, file ${dynConfigFilePath}`);
     }
 
-    if (ext === '.js') {
-        return scriptBegin + 'printConfig(`' + buf + '`);';
-    }
+    // if (ext === '.js') {
+    //     return scriptBegin + 'printConfig(`' + buf + '`);';
+    // }
 
     const rows = buf.replace(/\r\n/g, '\n').split('\n');
 
@@ -81,7 +81,7 @@ export function parseDynConfig(dynConfigFilePath: string): string {
     return scriptBegin + parser.script.join('\n');
 }
 
-export function evalDynConfig(dynConfigFilePath: string, context: object) {
+export function evalDynConfig(dynConfigFilePath: string, context: object, options: { saveBadJs?: boolean } = {}) {
     const sandbox: any = Object.assign({}, context);
     sandbox.path = safePath;
     sandbox.spread = (obj: any) => {
@@ -121,14 +121,35 @@ export function evalDynConfig(dynConfigFilePath: string, context: object) {
     //     wrapper: 'none',
     // });
 
+    const onEvalError = (e: any) => {
+        if (options.saveBadJs) {
+            const reportFileName = 'badJs-' + path.basename(dynConfigFilePath) + '.js';
+            console.log(`Error: Compiled js saved in file ${reportFileName}`);
+            fs.writeFileSync(reportFileName, script);
+        }
+
+        throw e;
+    };
+
     const ext = path.extname(dynConfigFilePath);
 
     if (ext === '.js') {
-        vm.run(script);
+        // Pre-compilation of js file, extracting data from variables
+        try {
+            vm.run(script);
+        } catch (e) {
+            onEvalError(e);
+        }
+
         script = sandbox.module.formattedConfig;
+        // ... then the js file will be executed with the actual data
     }
 
-    vm.run(script);
+    try {
+        vm.run(script);
+    } catch (e) {
+        onEvalError(e);
+    }
 
     if (sandbox.module.exports.config) {
         return JSON.stringify(sandbox.module.exports);

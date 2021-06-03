@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 import minimistParse from "minimist";
-import { ClusterConfig, defaultConfigFileName } from "./const";
+import { ClusterConfig, defaultConfigFileName, Options } from "./const";
 import stripJsonComments from "strip-json-comments";
 import { evalDynConfig } from "./dynamicConfig";
 
@@ -20,8 +20,9 @@ export function err(e: any) {
     process.exit();
 }
 
-export function parseArgs(): ClusterConfig {
-    const cliArgs: any = minimistParse(process.argv.slice(2));
+export function parseArgs(): { config: ClusterConfig, options: Options } {
+    const booleanArgs = ['reportError'];
+    const cliArgs: any = minimistParse(process.argv.slice(2), { boolean: booleanArgs });
 
     let mainModule = cliArgs._[0];
     //console.log(cliArgs);
@@ -48,12 +49,20 @@ export function parseArgs(): ClusterConfig {
 
     mainModule = truePath(mainModule);
 
+    const options: Options = {};
+
+    for (const opt of booleanArgs) {
+        if (typeof cliArgs[opt] !== 'undefined') {
+            (options[opt as keyof Options] as any) = cliArgs[opt];
+        }
+    }
+
     // const buf = fs.readFileSync(mainModule, 'utf8');
     let buf = '';
     const logPrefix = `Compile ${mainModule}: `;
 
     try {
-        buf = evalDynConfig(mainModule, {});
+        buf = evalDynConfig(mainModule, {}, { saveBadJs: options.reportError });
         console.log(logPrefix + color.g('Done'));
         //fs.writeFileSync(path.parse(mainModule).name + '.compiled.json', buf);
     } catch (e) {
@@ -76,7 +85,7 @@ export function parseArgs(): ClusterConfig {
 
     fileData.cd = path.dirname(mainModule);
 
-    return fileData;
+    return { config: fileData, options: options };
 }
 
 
