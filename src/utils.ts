@@ -122,7 +122,7 @@ export function setDefaultProps<T extends object>(context: T, defaultProps: stri
 
     if (badProps.length > 0) {
         console.log(`${color.r('WARNING!')} The context properties ${badProps.join(', ')} (of ${whereIsIt}) will be overwritten`);
-        console.log(`Hint: the context of each file contains the following default properties: ${defaultProps.map(p => '"' + p + '"').join(', ')} - DON'T USE THEM`);
+        console.log(`Hint: the context of each template file contains the following default properties: ${defaultProps.map(p => '"' + p + '"').join(', ')} - DON'T USE THEM`);
     }
 }
 

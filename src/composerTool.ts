@@ -23,9 +23,9 @@ interface EnvInfo extends ModuleName {
 }
 
 interface ModuleInfo extends ModuleName {
-    template: string;
+    template?: string;
     env?: EnvInfo;
-    moduleDir: string;
+    moduleDir?: string;
     // other custom properties
     [varName: string]: any;
 }
@@ -75,17 +75,21 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig, option
         const fullName = prefix + moduleName;
 
         const logEnd = `module "${color.y(moduleName)}"`;
-        checkConfigProps(moduleInfo, { template: ['string'] }, logEnd);
+        checkConfigProps(moduleInfo, { template: ['string', 'undefined'] }, logEnd);
         checkConfigProps(moduleInfo, { env: ['object', 'undefined'] }, logEnd);
 
-        if (!fs.existsSync(moduleInfo.template)) {
-            err(`File ${moduleInfo.template} not found`);
-        }
+        let moduleDir: string | undefined;
 
-        let moduleDir = truePath(path.relative(config.cd, path.dirname(moduleInfo.template)));
+        if (moduleInfo.template) {
+            if (!fs.existsSync(moduleInfo.template)) {
+                err(`File ${moduleInfo.template} not found`);
+            }
 
-        if (moduleDir && !moduleDir.endsWith('/')) {
-            moduleDir += '/';
+            let moduleDir = truePath(path.relative(config.cd, path.dirname(moduleInfo.template)));
+
+            if (moduleDir && !moduleDir.endsWith('/')) {
+                moduleDir += '/';
+            }
         }
 
         const defaultProps = ['path', 'spread', 'module', 'name', 'fullName'];
@@ -109,6 +113,10 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig, option
     let success = true;
 
     for (const module of clusterModules) {
+        if (!module.info.template) {
+            continue;
+        }
+
         const context: any = Object.assign({}, module.info);
         context.other = getOtherModulesCtx(module.info.fullName, clusterModules);
 
