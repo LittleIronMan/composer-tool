@@ -2,8 +2,7 @@ services:
     ${fullName}:
         container_name: ${fullName}
         image: postgres:12.3-alpine
-        env_file:
-            ${env.file}
+        env_file: ${env.envFile}
         volumes:
             - ${data_dir}:/var/lib/postgresql/data:rw
             #$if (this.init_dir)

@@ -62,7 +62,7 @@ export function parseArgs(): { config: ClusterConfig, options: Options } {
     const logPrefix = `Compile ${mainModule}: `;
 
     try {
-        buf = evalDynConfig(mainModule, {}, { saveBadJs: options.reportError });
+        buf = evalDynConfig(mainModule, {}, { saveJsWithError: options.reportError });
         console.log(logPrefix + color.g('Done'));
         //fs.writeFileSync(path.parse(mainModule).name + '.compiled.json', buf);
     } catch (e) {

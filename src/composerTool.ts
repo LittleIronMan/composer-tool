@@ -18,7 +18,7 @@ interface EnvInfo extends ModuleName {
     /** envConfig file path (input) */
     envConfig: string;
     /** dot-env file name (output) */
-    file: string;
+    envFile: string;
     [varName: string]: any;
 }
 
@@ -100,7 +100,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig, option
         if (typeof moduleInfo.env === 'object') {
             const logEnd = `"${color.y('env')}" block of module "${color.y(moduleName)}"`;
             checkConfigProps(moduleInfo.env, { envConfig: ['string'] }, logEnd);
-            setDefaultProps(moduleInfo.env, defaultPropsForEnv, { name: moduleName, fullName: fullName, file: defaultEnvFileName(fullName) }, logEnd);
+            setDefaultProps(moduleInfo.env, defaultPropsForEnv, { name: moduleName, fullName: fullName, envFile: defaultEnvFileName(fullName) }, logEnd);
         }
 
         clusterModules.push({
@@ -123,7 +123,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig, option
         const logPrefix = `Compile ${module.info.template}: `;
         //fs.writeFileSync('out.js', script);
         try {
-            module.compiledYaml = evalDynConfig(module.info.template, context, { saveBadJs: options.reportError });
+            module.compiledYaml = evalDynConfig(module.info.template, context, { saveJsWithError: options.reportError, whereIsIt: module.info.name });
             console.log(logPrefix + color.g('Done'));
         } catch (e) {
             console.log(logPrefix + color.r('Error, ' + e.message));
@@ -223,7 +223,7 @@ async function checkClusterEnvironment(clusterModules: ModuleData[], options: Op
                 if (envForParse) {
                     const logPrefix = `Compile ${filePath}` + (moduleId ? ` [module:${moduleId}]` : '') + ': ';
                     try {
-                        const result = evalDynConfig(filePath, envForParse, { saveBadJs: options.reportError });
+                        const result = evalDynConfig(filePath, envForParse, { saveJsWithError: options.reportError, whereIsIt: moduleId });
                         console.log(logPrefix + color.g('Done'));
                         return result;
                     } catch (e) {

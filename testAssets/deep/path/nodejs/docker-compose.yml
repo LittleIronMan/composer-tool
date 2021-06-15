@@ -16,8 +16,7 @@ services:
             - ${port}
             #$
 
-        env_file:
-            ${env.file}
+        env_file: ${env.envFile}
         #environment:
             #VIRTUAL_HOST: "myamazingdomain.com"
             #VIRTUAL_PORT: 3000

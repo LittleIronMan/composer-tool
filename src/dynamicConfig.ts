@@ -3,8 +3,7 @@ import path from "path";
 import { err, safePath, color } from "./utils";
 import { VM/*, NodeVM*/ } from 'vm2';
 
-const scriptBegin = `// config assembly
-function printConfig(configBlock) {
+const scriptBegin = `function printConfig(configBlock) {
     module.formattedConfig = module.formattedConfig + configBlock;
 }
 `;
@@ -81,7 +80,7 @@ export function parseDynConfig(dynConfigFilePath: string): string {
     return scriptBegin + parser.script.join('\n');
 }
 
-export function evalDynConfig(dynConfigFilePath: string, context: object, options: { saveBadJs?: boolean } = {}) {
+export function evalDynConfig(dynConfigFilePath: string, context: object, options: { saveJsWithError?: boolean, whereIsIt?: string } = {}) {
     const sandbox: any = Object.assign({}, context);
     sandbox.path = safePath;
     sandbox.spread = (obj: any) => {
@@ -93,6 +92,13 @@ export function evalDynConfig(dynConfigFilePath: string, context: object, option
         }
     };
     sandbox.module = { exports: {}, formattedConfig: '' };
+
+    // delete undefined props, to make VM throw error when using these properties
+    for (const key in sandbox) {
+        if (typeof sandbox[key] === 'undefined') {
+            delete sandbox[key];
+        }
+    }
 
     let script = parseDynConfig(dynConfigFilePath);
 
@@ -122,9 +128,9 @@ export function evalDynConfig(dynConfigFilePath: string, context: object, option
     // });
 
     const onEvalError = (e: any) => {
-        if (options.saveBadJs) {
-            const reportFileName = 'badJs-' + path.basename(dynConfigFilePath) + '.js';
-            console.log(`Error: Compiled js saved in file ${reportFileName}`);
+        if (options.saveJsWithError) {
+            const reportFileName = '_rejected_' + (options.whereIsIt ? options.whereIsIt + '_' : '') + path.basename(dynConfigFilePath) + '.js';
+            console.log(`Error: Uncompiled js saved in file ${reportFileName}`);
             fs.writeFileSync(reportFileName, script);
         }
 
