@@ -85,7 +85,7 @@ export function generateDockerComposeYmlFromConfig(config: ClusterConfig, option
                 err(`File ${moduleInfo.template} not found`);
             }
 
-            let moduleDir = truePath(path.relative(config.cd, path.dirname(moduleInfo.template)));
+            moduleDir = truePath(path.relative(config.cd, path.dirname(moduleInfo.template)));
 
             if (moduleDir && !moduleDir.endsWith('/')) {
                 moduleDir += '/';
